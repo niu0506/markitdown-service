@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarkItDown — 文档转 Markdown</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0c0f; --surface: #13131a; --surface2: #1c1c28;
+    --border: #2a2a3d; --accent: #7c6af7; --accent2: #c084fc;
+    --glow: rgba(124,106,247,0.3); --text: #e8e8f0; --dim: #7a7a9a;
+    --success: #4ade80; --error: #f87171;
+    --mono: 'JetBrains Mono', monospace; --sans: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+  .orb { position: fixed; border-radius: 50%; filter: blur(80px); pointer-events: none; z-index: 0; }
+  .orb-1 { width:400px;height:400px;background:radial-gradient(circle,rgba(124,106,247,.15),transparent 70%);top:-100px;left:-100px; }
+  .orb-2 { width:300px;height:300px;background:radial-gradient(circle,rgba(192,132,252,.1),transparent 70%);bottom:100px;right:-50px; }
+  .container { max-width: 860px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+  header { padding: 48px 0 36px; text-align: center; animation: fadeDown .6s ease both; }
+  .badge { display:inline-flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:100px;padding:5px 14px;font-size:11px;color:var(--accent2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:18px; }
+  .badge::before { content:'';width:6px;height:6px;background:var(--accent);border-radius:50%;box-shadow:0 0 8px var(--accent);animation:pulse 2s infinite; }
+  h1 { font-size:clamp(36px,6vw,62px);font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,#fff 30%,var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:10px; }
+  .subtitle { color: var(--dim); font-size: 15px; }
+  .formats { display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:18px 0 36px;animation:fadeUp .6s .1s ease both; }
+  .fmt { background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-family:var(--mono);font-size:11px;color:var(--dim); }
+
+  .upload-zone { display:block;border:2px dashed var(--border);border-radius:20px;padding:52px 32px;text-align:center;background:var(--surface);transition:border-color .2s,box-shadow .2s,transform .2s;animation:fadeUp .6s .2s ease both;cursor:pointer;user-select:none; }
+  .upload-zone:hover,.upload-zone.drag-over { border-color:var(--accent);transform:translateY(-2px);box-shadow:0 0 40px var(--glow),0 8px 32px rgba(0,0,0,.4); }
+  .upload-zone .btn { pointer-events:none; }
+  .upload-icon { font-size:40px;margin-bottom:14px;display:block;transition:transform .3s; }
+  .upload-zone:hover .upload-icon { transform:scale(1.15) rotate(-5deg); }
+  .upload-title { font-size:19px;font-weight:700;margin-bottom:6px; }
+  .upload-hint { color:var(--dim);font-size:13px;margin-bottom:18px; }
+  #file-input { position:absolute; width:0; height:0; opacity:0; pointer-events:none; }
+
+  .btn { display:inline-flex;align-items:center;gap:6px;padding:10px 22px;border-radius:9px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;border:1px solid var(--border);text-decoration:none; }
+  .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;color:#fff;box-shadow:0 2px 14px var(--glow); }
+  .btn-primary:hover { transform:translateY(-1px);box-shadow:0 4px 24px rgba(124,106,247,.5); }
+  .btn-ghost { background:var(--surface2);color:var(--dim); }
+  .btn-ghost:hover { border-color:var(--accent);color:var(--text); }
+
+  .progress { display:none;margin-top:24px;animation:fadeUp .3s ease both; }
+  .progress.show { display:block; }
+  .progress-label { display:flex;justify-content:space-between;font-size:12px;color:var(--dim);font-family:var(--mono);margin-bottom:8px; }
+  .track { background:var(--surface2);border-radius:100px;height:3px;overflow:hidden; }
+  .fill { height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:100px;width:0%;transition:width .3s;box-shadow:0 0 10px var(--accent); }
+  .fill.indeterminate { width:100%!important;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent));background-size:200%;animation:shimmer 1.2s infinite linear; }
+
+  .error { display:none;margin-top:18px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:10px;padding:14px 18px;color:var(--error);font-size:13px;gap:10px;animation:fadeUp .3s ease both; }
+  .error.show { display:flex;align-items:flex-start; }
+
+  .result { display:none;margin-top:28px;animation:fadeUp .4s ease both; }
+  .result.show { display:block; }
+  .result-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px; }
+  .result-meta { display:flex;align-items:center;gap:10px; }
+  .ok-badge { background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:var(--success);padding:3px 12px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase; }
+  .stats { font-family:var(--mono);font-size:11px;color:var(--dim); }
+  .action-btns { display:flex;gap:8px; }
+  .output { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:#c9c9e8;white-space:pre-wrap;word-break:break-word;max-height:500px;overflow-y:auto; }
+  .output::-webkit-scrollbar { width:5px; }
+  .output::-webkit-scrollbar-thumb { background:var(--border);border-radius:3px; }
+
+  footer { text-align:center;padding:44px 0 28px;color:var(--dim);font-size:12px;animation:fadeUp .6s .3s ease both; }
+  footer a { color:var(--accent2);text-decoration:none; }
+  footer a:hover { text-decoration:underline; }
+  .toast { position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 18px;font-size:12px;color:var(--success);opacity:0;transition:all .3s;z-index:999;pointer-events:none; }
+  .toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
+
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-18px)} to{opacity:1;transform:none} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(14px)}  to{opacity:1;transform:none} }
+  @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.4} }
+  @keyframes shimmer  { from{background-position:200% 0} to{background-position:-200% 0} }
+  @media(max-width:560px) { .result-header{flex-direction:column} .action-btns{width:100%} .btn{flex:1;justify-content:center} }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="container">
+  <header>
+    <div class="badge">powered by markitdown</div>
+    <h1>文档转 Markdown</h1>
+    <p class="subtitle">上传任意文档，即刻获得干净的 Markdown 文本</p>
+  </header>
+
+  <div class="formats">
+    <span class="fmt">PDF</span><span class="fmt">DOCX</span><span class="fmt">PPTX</span>
+    <span class="fmt">XLSX</span><span class="fmt">HTML</span><span class="fmt">CSV</span>
+    <span class="fmt">TXT</span><span class="fmt">JSON</span><span class="fmt">XML</span>
+    <span class="fmt">ZIP</span>
+  </div>
+
+  <input type="file" id="file-input" accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.csv,.html,.htm,.txt,.md,.xml,.json,.zip">
+  <label class="upload-zone" id="drop-zone" for="file-input">
+    <span class="upload-icon">📄</span>
+    <div class="upload-title">拖拽文件到此处</div>
+    <p class="upload-hint">或点击选择文件 · 最大 20MB</p>
+    <span class="btn btn-primary">选择文件</span>
+  </label>
+
+  <div class="progress" id="progress">
+    <div class="progress-label">
+      <span id="prog-text">正在转换...</span>
+      <span id="prog-file"></span>
+    </div>
+    <div class="track"><div class="fill" id="fill"></div></div>
+  </div>
+
+  <div class="error" id="error-box"><span>⚠️</span><span id="error-msg"></span></div>
+
+  <div class="result" id="result">
+    <div class="result-header">
+      <div class="result-meta">
+        <span class="ok-badge">✓ 成功</span>
+        <span class="stats" id="stats"></span>
+      </div>
+      <div class="action-btns">
+        <button class="btn btn-ghost" onclick="copyMd()">📋 复制</button>
+        <button class="btn btn-primary" onclick="downloadMd()">↓ 下载 .md</button>
+      </div>
+    </div>
+    <div class="output" id="output"></div>
+  </div>
+
+  <footer>
+    基于 <a href="https://github.com/microsoft/markitdown" target="_blank">Microsoft MarkItDown</a> ·
+    部署于 <a href="https://render.com" target="_blank">Render</a>
+  </footer>
+</div>
+<div class="toast" id="toast">✓ 已复制到剪贴板</div>
+
+<script>
+  let md = '', filename = '';
+
+  const zone     = document.getElementById('drop-zone');
+  const input    = document.getElementById('file-input');
+  const prog     = document.getElementById('progress');
+  const fill     = document.getElementById('fill');
+  const progTxt  = document.getElementById('prog-text');
+  const progFile = document.getElementById('prog-file');
+  const errBox   = document.getElementById('error-box');
+  const errMsg   = document.getElementById('error-msg');
+  const result   = document.getElementById('result');
+  const output   = document.getElementById('output');
+  const stats    = document.getElementById('stats');
+
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', () => { if (input.files[0]) upload(input.files[0]); });
+
+  // 保活：每 10 分钟 ping 一次，防止 Render 休眠
+  setInterval(() => fetch('/health').catch(() => {}), 10 * 60 * 1000);
+
+  async function upload(file) {
+    filename = file.name;
+    errBox.classList.remove('show');
+    result.classList.remove('show');
+    prog.classList.add('show');
+    fill.className = 'fill indeterminate';
+    progTxt.textContent = '正在转换...';
+    progFile.textContent = file.name;
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res  = await fetch('/convert', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || '服务器错误');
+
+      fill.className = 'fill';
+      fill.style.width = '100%';
+      progTxt.textContent = '转换完成 ✓';
+
+      md = data.markdown;
+      output.textContent = md;
+      stats.textContent = `${data.char_count.toLocaleString()} 字符 · ${data.line_count.toLocaleString()} 行`;
+
+      setTimeout(() => {
+        prog.classList.remove('show');
+        result.classList.add('show');
+        result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 500);
+    } catch(e) {
+      prog.classList.remove('show');
+      errMsg.textContent = e.message;
+      errBox.classList.add('show');
+    }
+    input.value = '';
+  }
+
+  function copyMd() {
+    navigator.clipboard.writeText(md).then(() => {
+      const t = document.getElementById('toast');
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2000);
+    });
+  }
+
+  function downloadMd() {
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([md], { type: 'text/markdown' })),
+      download: filename.replace(/\.[^.]+$/, '') + '.md'
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+</script>
+</body>
+</html>
