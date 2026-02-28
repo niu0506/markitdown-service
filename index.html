@@ -100,11 +100,44 @@
   .ok-badge { background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:var(--success);padding:3px 12px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase; }
   .stats { font-family:var(--mono);font-size:11px;color:var(--dim); }
   .action-btns { display:flex;gap:8px; }
-  /* Markdown 预览输出框：等宽字体、最大高度、可滚动 */
+  /* ── 标签页切换栏 ────────────────────────────────── */
+  .tabs { display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px;width:fit-content;margin-bottom:12px; }
+  /* 单个标签按钮 */
+  .tab { padding:6px 18px;border-radius:7px;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;border:none;background:transparent;color:var(--dim);transition:all .18s;letter-spacing:.03em; }
+  /* 激活状态：白底 + 强调色文字 + 轻微阴影 */
+  .tab.active { background:var(--surface);color:var(--accent);box-shadow:0 1px 6px rgba(0,0,0,.3); }
+  .tab:not(.active):hover { color:var(--text); }
+
+  /* ── 原始 Markdown 文本框 ────────────────────────── */
   .output { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:#c9c9e8;white-space:pre-wrap;word-break:break-word;max-height:500px;overflow-y:auto; }
   /* 自定义滚动条样式 */
   .output::-webkit-scrollbar { width:5px; }
   .output::-webkit-scrollbar-thumb { background:var(--border);border-radius:3px; }
+
+  /* ── 富文本预览框（marked.js 渲染结果）────────────── */
+  .preview { display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px 32px;max-height:500px;overflow-y:auto;line-height:1.8;font-size:14px;color:var(--text); }
+  .preview::-webkit-scrollbar { width:5px; }
+  .preview::-webkit-scrollbar-thumb { background:var(--border);border-radius:3px; }
+  /* 预览区内各 Markdown 元素样式 */
+  .preview h1,.preview h2,.preview h3,.preview h4 { font-family:var(--sans);font-weight:700;margin:1.4em 0 .5em;letter-spacing:-.02em;background:linear-gradient(135deg,#fff,var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+  .preview h1 { font-size:1.9em; }
+  .preview h2 { font-size:1.45em; border-bottom:1px solid var(--border); padding-bottom:.3em; }
+  .preview h3 { font-size:1.15em; }
+  .preview p  { margin:.6em 0; color:#cccce8; }
+  .preview a  { color:var(--accent2);text-decoration:none;border-bottom:1px solid rgba(192,132,252,.3);transition:border-color .15s; }
+  .preview a:hover { border-color:var(--accent2); }
+  .preview ul,.preview ol { padding-left:1.6em;margin:.5em 0; }
+  .preview li { margin:.3em 0;color:#cccce8; }
+  .preview blockquote { border-left:3px solid var(--accent);margin:.8em 0;padding:.4em 1em;background:rgba(124,106,247,.06);border-radius:0 8px 8px 0;color:var(--dim);font-style:italic; }
+  .preview code { font-family:var(--mono);font-size:.85em;background:var(--surface2);padding:2px 6px;border-radius:4px;color:var(--accent2); }
+  .preview pre { background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;overflow-x:auto;margin:.8em 0; }
+  .preview pre code { background:none;padding:0;color:#c9c9e8; }
+  .preview table { width:100%;border-collapse:collapse;margin:.8em 0;font-size:13px; }
+  .preview th { background:var(--surface2);color:var(--accent2);font-weight:700;text-align:left;padding:8px 12px;border:1px solid var(--border); }
+  .preview td { padding:7px 12px;border:1px solid var(--border);color:#cccce8; }
+  .preview tr:nth-child(even) td { background:rgba(255,255,255,.02); }
+  .preview img { max-width:100%;border-radius:8px;margin:.5em 0; }
+  .preview hr { border:none;border-top:1px solid var(--border);margin:1.4em 0; }
 
   /* 页脚 */
   footer { text-align:center;padding:44px 0 28px;color:var(--dim);font-size:12px;animation:fadeUp .6s .3s ease both; }
@@ -124,6 +157,8 @@
   /* 移动端适配：结果区头部改为纵向排列，按钮撑满全宽 */
   @media(max-width:560px) { .result-header{flex-direction:column} .action-btns{width:100%} .btn{flex:1;justify-content:center} }
 </style>
+<!-- marked.js：将 Markdown 文本渲染为 HTML 富文本 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 </head>
 <body>
 <!-- 背景装饰光晕（纯视觉，不可交互） -->
@@ -181,8 +216,18 @@
         <button class="btn btn-primary" onclick="downloadMd()">↓ 下载 .md</button>
       </div>
     </div>
-    <!-- Markdown 文本预览框 -->
+
+    <!-- 标签页切换栏：源码 / 预览 -->
+    <div class="tabs">
+      <button class="tab active" id="tab-source"  onclick="switchTab('source')">源码</button>
+      <button class="tab"        id="tab-preview" onclick="switchTab('preview')">预览</button>
+    </div>
+
+    <!-- 原始 Markdown 文本框（源码视图） -->
     <div class="output" id="output"></div>
+
+    <!-- 富文本预览框（预览视图，marked.js 渲染） -->
+    <div class="preview" id="preview"></div>
   </div>
 
   <!-- 页脚 -->
@@ -210,7 +255,8 @@
   const errBox   = document.getElementById('error-box');   // 错误提示框
   const errMsg   = document.getElementById('error-msg');   // 错误信息文字
   const result   = document.getElementById('result');      // 结果展示区
-  const output   = document.getElementById('output');      // Markdown 预览框
+  const output   = document.getElementById('output');      // 源码文本框
+  const preview  = document.getElementById('preview');    // 富文本预览框
   const stats    = document.getElementById('stats');       // 字符/行数统计
 
   // ── 拖拽事件监听 ─────────────────────────────────────
@@ -266,9 +312,11 @@
       fill.style.width = '100%';
       progTxt.textContent = '转换完成 ✓';
 
-      // 将结果存入全局变量并渲染到预览框
+      // 将结果存入全局变量，渲染源码视图，并用 marked.js 渲染富文本预览
       md = data.markdown;
       output.textContent = md;
+      preview.innerHTML = marked.parse(md);  // 解析 Markdown → HTML 并注入预览框
+      switchTab('source');                   // 每次新文件默认回到源码标签页
       stats.textContent = `${data.char_count.toLocaleString()} 字符 · ${data.line_count.toLocaleString()} 行`;
 
       // 短暂延迟后隐藏进度条、展示结果区，并平滑滚动到结果位置
@@ -287,6 +335,20 @@
 
     // 清空 input 的值，允许用户重复选择同一文件
     input.value = '';
+  }
+
+  /**
+   * switchTab — 切换源码 / 预览标签页
+   * @param {'source'|'preview'} tab - 目标标签页名称
+   */
+  function switchTab(tab) {
+    const isSource = tab === 'source';
+    // 切换内容区显示：源码框 vs 预览框
+    output.style.display  = isSource ? 'block' : 'none';
+    preview.style.display = isSource ? 'none'  : 'block';
+    // 切换标签按钮激活状态
+    document.getElementById('tab-source').classList.toggle('active',  isSource);
+    document.getElementById('tab-preview').classList.toggle('active', !isSource);
   }
 
   /**
