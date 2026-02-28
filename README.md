@@ -1,10 +1,7 @@
 # MarkItDown 在线转换服务
 
-将 PDF、Word、PPT、Excel、图片等格式一键转为 Markdown。
+将 PDF、Word、PPT、Excel 等格式一键转为 Markdown，支持富文本预览。
 
-## 支持格式
-
-PDF · DOCX · PPTX · XLSX · CSV · HTML · TXT · JSON · XML · JPG/PNG · MP3/WAV · ZIP
 
 ## 本地运行
 
