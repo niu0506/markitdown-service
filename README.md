@@ -1,51 +1,89 @@
-# MarkItDown 在线转换服务
+# MarkItDown Service
 
-将 PDF、Word、PPT、Excel 等格式一键转为 Markdown，支持富文本预览。
+文档转 Markdown 后端服务，基于 FastAPI 和 MarkItDown 构建。
 
+## 功能
 
-## 本地运行
+- 支持多种文档格式转换为 Markdown
+- RESTful API 接口
+- 自动保活（防止云平台休眠）
+
+## 支持的文件格式
+
+`.pdf` `.docx` `.doc` `.pptx` `.ppt` `.xlsx` `.xls` `.csv` `.html` `.htm` `.txt` `.md` `.xml` `.json` `.zip`
+
+## 快速开始
+
+### 本地运行
 
 ```bash
+# 安装依赖
 pip install -r requirements.txt
-uvicorn main:app --reload
+
+# 启动服务
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-访问 http://localhost:8000
+访问 http://localhost:8000 即可使用。
 
-## 部署到 Render（免费）
+### 部署到 Render
 
-### 方法一：一键部署（推荐）
+1. Fork 或 clone 本仓库
+2. 在 Render 创建新的 Web Service
+3. 连接 GitHub 仓库
+4. Render 会自动检测 `render.yaml` 配置
 
-1. Fork 本仓库到你的 GitHub 账号
-2. 登录 [Render](https://render.com) 并注册账号
-3. 点击 **New → Web Service**
-4. 选择 **Connect a repository**，授权并选择你 Fork 的仓库
-5. Render 会自动读取 `render.yaml` 配置文件
-6. 点击 **Create Web Service**，等待部署完成（约 3~5 分钟）
+**环境变量：**
+- `SELF_URL`: 服务地址（用于心跳保活），如 `https://your-app.onrender.com`
 
-### 方法二：手动配置
+## API 接口
 
-如果自动读取配置失败，手动填写：
+### GET /
 
-| 字段 | 值 |
-|------|-----|
-| Runtime | Python 3 |
-| Build Command | `pip install -r requirements.txt` |
-| Start Command | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+返回前端 HTML 页面
 
-### 注意事项
+### GET /health
 
-- Render 免费套餐在 **15 分钟无访问后会自动休眠**，下次访问需要 30~60 秒冷启动
-- 如需避免休眠，可使用 [UptimeRobot](https://uptimerobot.com) 每 10 分钟 ping 一次
-- 文件大小限制：20MB
+健康检查端点
 
-## 项目结构
+### POST /convert
 
+上传文件并转换为 Markdown
+
+**请求：**
+- Content-Type: `multipart/form-data`
+- Body: `file` 字段（文件）
+
+**响应：**
+```json
+{
+  "success": true,
+  "filename": "document.pdf",
+  "markdown": "转换后的Markdown内容...",
+  "char_count": 1234,
+  "line_count": 56
+}
 ```
-markitdown-service/
-├── main.py          # FastAPI 后端
-├── index.html       # 前端页面
-├── requirements.txt # Python 依赖
-├── render.yaml      # Render 部署配置
-└── README.md
+
+**错误响应：**
+```json
+{
+  "detail": "错误信息"
+}
 ```
+
+## 限制
+
+- 最大文件大小：20MB
+- 免费版 Render 服务15分钟无请求会休眠（已内置心跳保活）
+
+## 技术栈
+
+- Python 3.11
+- FastAPI
+- MarkItDown
+- Uvicorn
+
+## License
+
+MIT
