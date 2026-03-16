@@ -6,13 +6,44 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import tempfile
 import os
 import traceback
+import asyncio
+import httpx
 from pathlib import Path
 
+SELF_URL = os.getenv("SELF_URL", "")  # Render上设置自己的URL，如 https://xxx.onrender.com
+KEEPALIVE_INTERVAL = 600  # 10分钟 = 600秒
+
+
+async def keepalive_task():
+    """后台心跳任务，每隔10分钟ping自己防止休眠"""
+    if not SELF_URL:
+        print("[KeepAlive] SELF_URL 未设置，心跳任务已跳过")
+        return
+    await asyncio.sleep(30)  # 启动后等待30秒
+    async with httpx.AsyncClient() as client:
+        while True:
+            try:
+                resp = await client.get(f"{SELF_URL}/health", timeout=30)
+                print(f"[KeepAlive] 心跳发送成功: {resp.status_code}")
+            except Exception as e:
+                print(f"[KeepAlive] 心跳发送失败: {e}")
+            await asyncio.sleep(KEEPALIVE_INTERVAL)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理：启动后台心跳任务"""
+    task = asyncio.create_task(keepalive_task())
+    yield
+    task.cancel()
+
+
 # 创建 FastAPI 应用实例，设置服务名称和版本
-app = FastAPI(title="MarkItDown Service", version="1.0.0")
+app = FastAPI(title="MarkItDown Service", version="1.0.0", lifespan=lifespan)
 
 # 配置跨域资源共享 (CORS) 中间件
 # 允许所有来源、所有方法和所有请求头，便于前端跨域调用
@@ -43,6 +74,12 @@ async def index():
     """
     with open("index.html", "r", encoding="utf-8") as f:
         return f.read()
+
+
+@app.get("/health")
+async def health():
+    """健康检查端点，用于心跳保活"""
+    return {"status": "ok", "service": "markitdown"}
 
 
 @app.post("/convert")

@@ -7,4 +7,6 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: SELF_URL
+        value: https://markitdown-service-zhmg.onrender.com
     autoDeploy: true
